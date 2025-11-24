@@ -30,7 +30,7 @@ typedef struct
 #else
 typedef struct _GUID
 {
-#ifdef _MSC_VER
+#if !defined(__LP64__) && !defined(WINE_UNIX_LIB)
     unsigned long  Data1;
 #else
     unsigned int   Data1;
@@ -42,30 +42,49 @@ typedef struct _GUID
 #endif
 
 /* Macros for __uuidof emulation */
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#ifdef __cplusplus
+# if defined(__MINGW32__)
+#  if !defined(__uuidof)  /* Mingw64 can provide support for __uuidof and __CRT_UUID_DECL */
+#   define __WINE_UUID_ATTR __attribute__((selectany))
+#   undef __CRT_UUID_DECL
+#  endif
+# elif defined(__GNUC__)
+#  define __WINE_UUID_ATTR __attribute__((visibility("hidden"),weak))
+# endif
+#endif
+
+#ifdef __WINE_UUID_ATTR
 
 extern "C++" {
-    template<typename T> const GUID &__wine_uuidof();
+    template<typename T> struct __wine_uuidof {
+        static const GUID uuid;
+    };
+    template<typename T> struct __wine_uuidof_type {
+        typedef __wine_uuidof<T> inst;
+    };
+    template<typename T> struct __wine_uuidof_type<T *> {
+        typedef __wine_uuidof<T> inst;
+    };
+    template<typename T> struct __wine_uuidof_type<T * const> {
+        typedef __wine_uuidof<T> inst;
+    };
 }
 
 #define __CRT_UUID_DECL(type,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8)           \
     extern "C++" {                                                      \
-    template<> inline const GUID &__wine_uuidof<type>() {               \
-        static const IID __uuid_inst = {l,w1,w2, {b1,b2,b3,b4,b5,b6,b7,b8}}; \
-        return __uuid_inst;                                             \
-    }                                                                   \
-    template<> inline const GUID &__wine_uuidof<type*>() {              \
-        return __wine_uuidof<type>();                                   \
-    }                                                                   \
+        template<> struct __wine_uuidof<type> {                         \
+            static const GUID uuid;                                     \
+        };                                                              \
+        __WINE_UUID_ATTR const GUID __wine_uuidof<type>::uuid = {l,w1,w2,{b1,b2,b3,b4,b5,b6,b7,b8}}; \
     }
 
-#define __uuidof(type) __wine_uuidof<typeof(type)>()
+#define __uuidof(type) __wine_uuidof_type<__typeof__(type)>::inst::uuid
 
-#else
+#elif !defined(__CRT_UUID_DECL)
 
 #define __CRT_UUID_DECL(type,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8)
 
-#endif
+#endif /* __WINE_UUID_ATTR */
 
 #endif
 
@@ -74,18 +93,16 @@ extern "C++" {
 #ifdef INITGUID
 #ifdef __cplusplus
 #define DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
-        EXTERN_C const GUID name DECLSPEC_HIDDEN; \
         EXTERN_C const GUID name = \
 	{ l, w1, w2, { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }
 #else
 #define DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
-        const GUID name DECLSPEC_HIDDEN; \
         const GUID name = \
 	{ l, w1, w2, { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }
 #endif
 #else
 #define DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
-    EXTERN_C const GUID name DECLSPEC_HIDDEN
+    EXTERN_C const GUID name
 #endif
 
 #define DEFINE_OLEGUID(name, l, w1, w2) \
@@ -130,32 +147,32 @@ typedef GUID FMTID,*LPFMTID;
 #define REFCLSID            const CLSID &
 #define REFIID              const IID &
 #define REFFMTID            const FMTID &
-#else /* !defined(__cplusplus) */
+#else
 #define REFGUID             const GUID* __MIDL_CONST
 #define REFCLSID            const CLSID* __MIDL_CONST
 #define REFIID              const IID* __MIDL_CONST
 #define REFFMTID            const FMTID* __MIDL_CONST
-#endif /* !defined(__cplusplus) */
+#endif
 
-#if defined(__cplusplus) && !defined(CINTERFACE)
+#ifdef __cplusplus
 #define IsEqualGUID(rguid1, rguid2) (!memcmp(&(rguid1), &(rguid2), sizeof(GUID)))
 inline int InlineIsEqualGUID(REFGUID rguid1, REFGUID rguid2)
 {
-   return (((ULONG *)&rguid1)[0] == ((ULONG *)&rguid2)[0] &&
-           ((ULONG *)&rguid1)[1] == ((ULONG *)&rguid2)[1] &&
-           ((ULONG *)&rguid1)[2] == ((ULONG *)&rguid2)[2] &&
-           ((ULONG *)&rguid1)[3] == ((ULONG *)&rguid2)[3]);
+   return (((const unsigned int *)&rguid1)[0] == ((const unsigned int *)&rguid2)[0] &&
+           ((const unsigned int *)&rguid1)[1] == ((const unsigned int *)&rguid2)[1] &&
+           ((const unsigned int *)&rguid1)[2] == ((const unsigned int *)&rguid2)[2] &&
+           ((const unsigned int *)&rguid1)[3] == ((const unsigned int *)&rguid2)[3]);
 }
-#else /* defined(__cplusplus) && !defined(CINTERFACE) */
+#else
 #define IsEqualGUID(rguid1, rguid2) (!memcmp(rguid1, rguid2, sizeof(GUID)))
 #define InlineIsEqualGUID(rguid1, rguid2)  \
-        (((ULONG *)rguid1)[0] == ((ULONG *)rguid2)[0] && \
-         ((ULONG *)rguid1)[1] == ((ULONG *)rguid2)[1] && \
-         ((ULONG *)rguid1)[2] == ((ULONG *)rguid2)[2] && \
-         ((ULONG *)rguid1)[3] == ((ULONG *)rguid2)[3])
-#endif /* defined(__cplusplus) && !defined(CINTERFACE) */
+        (((unsigned int *)rguid1)[0] == ((unsigned int *)rguid2)[0] && \
+         ((unsigned int *)rguid1)[1] == ((unsigned int *)rguid2)[1] && \
+         ((unsigned int *)rguid1)[2] == ((unsigned int *)rguid2)[2] && \
+         ((unsigned int *)rguid1)[3] == ((unsigned int *)rguid2)[3])
+#endif
 
-#if defined(__cplusplus) && !defined(CINTERFACE)
+#ifdef __cplusplus
 #include <string.h>
 inline bool operator==(const GUID& guidOne, const GUID& guidOther)
 {
@@ -166,7 +183,5 @@ inline bool operator!=(const GUID& guidOne, const GUID& guidOther)
     return !(guidOne == guidOther);
 }
 #endif
-
-extern const IID GUID_NULL;
 
 #endif /* _GUIDDEF_H_ */

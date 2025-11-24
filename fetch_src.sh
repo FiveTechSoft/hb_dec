@@ -43,6 +43,13 @@ wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/poppac
 wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/winnt.rh
 wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/pshpack2.h
 wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/pshpack8.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/minwindef.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/winapifamily.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/specstrings.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/sal.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/specstrings_strict.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/driverspecs.h
+wget -N https://raw.githubusercontent.com/wine-mirror/wine/master/include/concurrencysal.h
 
 #sources from https://github.com/git/git
 

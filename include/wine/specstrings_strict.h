@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999 Patrik Stridvall
+ * Copyright 2023 Vitaly Lipatov
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef _MSC_VER
-# pragma warning(disable:4103)
+#ifndef __SPECSTRINGS_STRICT_LEVEL
+#define __SPECSTRINGS_STRICT_LEVEL 1
 #endif
 
-#pragma pack(push,4)
+#if !defined(__midl) && !defined(__WIDL__) && (__SPECSTRINGS_STRICT_LEVEL > 0)
+
+#define __field_bcount(size)
+#define __field_ecount(size)
+#define __field_xcount(size)
+#define __success(status)
+#define __range(lb,ub)
+
+#ifdef _MSC_VER
+#define __in
+#define __out
+#define __reserved
+#endif
+
+#endif

@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_BASETSD_H
-#define __WINE_BASETSD_H
+#ifndef _BASETSD_H_
+#define _BASETSD_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,12 +65,20 @@ extern "C" {
 #  endif
 #endif /* !defined(_MSC_VER) */
 
+#ifndef __has_declspec_attribute
+# if defined(_MSC_VER)
+#  define __has_declspec_attribute(x) 1
+# else
+#  define __has_declspec_attribute(x) 0
+# endif
+#endif
+
 /* FIXME: DECLSPEC_ALIGN should be declared only in winnt.h, but we need it here too */
 #ifndef DECLSPEC_ALIGN
-# if defined(_MSC_VER) && (_MSC_VER >= 1300) && !defined(MIDL_PASS)
-#  define DECLSPEC_ALIGN(x) __declspec(align(x))
-# elif defined(__GNUC__)
+# ifdef __GNUC__
 #  define DECLSPEC_ALIGN(x) __attribute__((aligned(x)))
+# elif __has_declspec_attribute(align) && !defined(MIDL_PASS)
+#  define DECLSPEC_ALIGN(x) __declspec(align(x))
 # else
 #  define DECLSPEC_ALIGN(x)
 # endif
@@ -87,18 +95,23 @@ typedef unsigned int     ULONG32, *PULONG32;
 typedef unsigned int     DWORD32, *PDWORD32;
 
 #ifdef _MSC_VER
-typedef signed __int64   INT64, *PINT64;
-typedef unsigned __int64 UINT64, *PUINT64;
-typedef signed __int64   LONG64, *PLONG64;
-typedef unsigned __int64 ULONG64, *PULONG64;
-typedef unsigned __int64 DWORD64, *PDWORD64;
+typedef signed __int64   INT64;
+typedef unsigned __int64 UINT64;
+typedef signed __int64   LONG64;
+typedef unsigned __int64 ULONG64;
+typedef unsigned __int64 DWORD64;
 #else
-typedef signed __int64   DECLSPEC_ALIGN(8) INT64, *PINT64;
-typedef unsigned __int64 DECLSPEC_ALIGN(8) UINT64, *PUINT64;
-typedef signed __int64   DECLSPEC_ALIGN(8) LONG64, *PLONG64;
-typedef unsigned __int64 DECLSPEC_ALIGN(8) ULONG64, *PULONG64;
-typedef unsigned __int64 DECLSPEC_ALIGN(8) DWORD64, *PDWORD64;
+typedef signed __int64   DECLSPEC_ALIGN(8) INT64;
+typedef unsigned __int64 DECLSPEC_ALIGN(8) UINT64;
+typedef signed __int64   DECLSPEC_ALIGN(8) LONG64;
+typedef unsigned __int64 DECLSPEC_ALIGN(8) ULONG64;
+typedef unsigned __int64 DECLSPEC_ALIGN(8) DWORD64;
 #endif
+typedef INT64 *PINT64;
+typedef UINT64 *PUINT64;
+typedef LONG64 *PLONG64;
+typedef ULONG64 *PULONG64;
+typedef DWORD64 *PDWORD64;
 
 /* Basic pointer-sized integer types */
 
@@ -108,7 +121,6 @@ typedef /* [public] */ signed __int3264   INT_PTR, *PINT_PTR;
 typedef /* [public] */ signed __int3264   LONG_PTR, *PLONG_PTR;
 typedef /* [public] */ unsigned __int3264 UINT_PTR, *PUINT_PTR;
 typedef /* [public] */ unsigned __int3264 ULONG_PTR, *PULONG_PTR;
-typedef ULONG_PTR                   DWORD_PTR, *PDWORD_PTR;
 
 #elif defined(_WIN64)
 
@@ -118,17 +130,21 @@ typedef signed __int64   INT_PTR, *PINT_PTR;
 typedef signed __int64   LONG_PTR, *PLONG_PTR;
 typedef unsigned __int64 UINT_PTR, *PUINT_PTR;
 typedef unsigned __int64 ULONG_PTR, *PULONG_PTR;
-typedef ULONG_PTR        DWORD_PTR, *PDWORD_PTR;
 
 #else
 
 #define __int3264 __int32
 
-typedef long          INT_PTR, *PINT_PTR;
-typedef unsigned long UINT_PTR, *PUINT_PTR;
+typedef int           INT_PTR, *PINT_PTR;
+typedef unsigned int  UINT_PTR, *PUINT_PTR;
+/* clang warns about long type in %I formats */
+#if defined(__WINESRC__) && defined(__clang__) && (defined(__MINGW32__) || defined(_MSC_VER))
+typedef int           LONG_PTR, *PLONG_PTR;
+typedef unsigned int  ULONG_PTR, *PULONG_PTR;
+#else
 typedef long          LONG_PTR, *PLONG_PTR;
 typedef unsigned long ULONG_PTR, *PULONG_PTR;
-typedef ULONG_PTR     DWORD_PTR, *PDWORD_PTR;
+#endif
 
 #endif
 
@@ -140,8 +156,6 @@ typedef ULONG_PTR     DWORD_PTR, *PDWORD_PTR;
 #define MININT_PTR 0x8000000000000000
 #define MAXUINT_PTR 0xffffffffffffffff
 
-typedef __int64 SHANDLE_PTR;
-typedef unsigned __int64 HANDLE_PTR;
 typedef int HALF_PTR, *PHALF_PTR;
 typedef unsigned int UHALF_PTR, *PUHALF_PTR;
 
@@ -151,15 +165,53 @@ typedef unsigned int UHALF_PTR, *PUHALF_PTR;
 
 #if !defined(__midl) && !defined(__WIDL__)
 
-static inline ULONG32 HandleToULong(const void *h)
+#if !defined(__LP64__) && !defined(WINE_NO_LONG_TYPES) && !defined(WINE_UNIX_LIB)
+
+static inline unsigned long HandleToULong(const void *h)
 {
-    return (ULONG32)(ULONG_PTR)h;
+    return (unsigned long)(ULONG_PTR)h;
 }
 
-static inline LONG32 HandleToLong(const void *h)
+static inline long HandleToLong(const void *h)
 {
-    return (LONG32)(LONG_PTR)h;
+    return (long)(LONG_PTR)h;
 }
+
+static inline unsigned long PtrToUlong(const void *p)
+{
+    return (unsigned long)(ULONG_PTR)p;
+}
+
+static inline long PtrToLong(const void *p)
+{
+    return (long)(LONG_PTR)p;
+}
+
+
+#else
+
+static inline unsigned HandleToULong(const void *h)
+{
+    return (unsigned)(ULONG_PTR)h;
+}
+
+static inline int HandleToLong(const void *h)
+{
+    return (int)(LONG_PTR)h;
+}
+
+static inline unsigned PtrToUlong(const void *p)
+{
+    return (unsigned)(ULONG_PTR)p;
+}
+
+static inline int PtrToLong(const void *p)
+{
+    return (int)(LONG_PTR)p;
+}
+
+
+#endif /* !defined(__LP64__) && !defined(WINE_NO_LONG_TYPES) && !defined(WINE_UNIX_LIB) */
 
 static inline void *ULongToHandle(ULONG32 ul)
 {
@@ -169,16 +221,6 @@ static inline void *ULongToHandle(ULONG32 ul)
 static inline void *LongToHandle(LONG32 l)
 {
     return (void *)(LONG_PTR)l;
-}
-
-static inline ULONG32 PtrToUlong(const void *p)
-{
-    return (ULONG32)(ULONG_PTR)p;
-}
-
-static inline LONG32 PtrToLong(const void *p)
-{
-    return (LONG32)(LONG_PTR)p;
 }
 
 static inline UINT32 PtrToUint(const void *p)
@@ -229,8 +271,6 @@ static inline void *ULongToPtr(ULONG32 ul)
 #define MININT_PTR 0x80000000
 #define MAXUINT_PTR 0xffffffff
 
-typedef long SHANDLE_PTR;
-typedef unsigned long HANDLE_PTR;
 typedef signed short HALF_PTR, *PHALF_PTR;
 typedef unsigned short UHALF_PTR, *PUHALF_PTR;
 
@@ -260,61 +300,17 @@ typedef unsigned short UHALF_PTR, *PUHALF_PTR;
 #define UintToPtr(ui)           UIntToPtr(ui)
 #define UlongToPtr(ul)          ULongToPtr(ul)
 
+typedef LONG_PTR SHANDLE_PTR;
+typedef ULONG_PTR HANDLE_PTR;
 typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 typedef ULONG_PTR SIZE_T, *PSIZE_T;
-
+typedef ULONG_PTR DWORD_PTR, *PDWORD_PTR;
 typedef ULONG_PTR KAFFINITY, *PKAFFINITY;
 
-/* Some Wine-specific definitions */
-
-/* Architecture dependent settings. */
-/* These are hardcoded to avoid dependencies on config.h in Winelib apps. */
-#if defined(__i386__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# define ALLOW_UNALIGNED_ACCESS
-#elif defined(__x86_64__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# define ALLOW_UNALIGNED_ACCESS
-#elif defined(__powerpc__)
-# define WORDS_BIGENDIAN
-# define BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__ALPHA__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__ARMEB__)
-# define WORDS_BIGENDIAN
-# define BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__ARMEL__) || defined(__arm__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__AARCH64EB__)
-# define WORDS_BIGENDIAN
-# define BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__AARCH64EL__) || defined(__aarch64__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__MIPSEB__)
-# define WORDS_BIGENDIAN
-# define BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif defined(__MIPSEL__)
-# undef  WORDS_BIGENDIAN
-# undef  BITFIELDS_BIGENDIAN
-# undef  ALLOW_UNALIGNED_ACCESS
-#elif !defined(RC_INVOKED) && !defined(__WIDL__) && !defined(__midl)
-# error Unknown CPU architecture!
-#endif
+#define MINLONGLONG             ((LONGLONG)~MAXLONGLONG)
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* defined(__cplusplus) */
 
-#endif /* !defined(__WINE_BASETSD_H) */
+#endif /* !defined(_BASETSD_H_) */
