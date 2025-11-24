@@ -82,7 +82,7 @@
       #undef INT32_MIN
       #define INT32_MIN ((int32_t) (-INT32_MAX-1))
       #undef INT64_MIN
-      #define INT64_MIN (9223372036854775807i64-1)
+      #define INT64_MIN (-9223372036854775807i64-1)
       #undef INT64_MAX
       #define INT64_MAX 9223372036854775807i64
    #endif
@@ -466,6 +466,8 @@ typedef HB_UCHAR            HB_U8;
 typedef HB_MAXINT    HB_VMMAXINT;
 typedef HB_MAXUINT   HB_VMMAXUINT;
 
+typedef HB_U32       HB_SYMCNT;
+
 #define HB_DBL_LIM_INT(d)     ( HB_VMINT_MIN <= (d) && (d) <= HB_VMINT_MAX )
 #define HB_DBL_LIM_LONG(d)    ( (HB_MAXDBL) HB_VMLONG_MIN <= (HB_MAXDBL) (d) && (HB_MAXDBL) (d) <= (HB_MAXDBL) HB_VMLONG_MAX )
 #define HB_LIM_INT(l)         ( HB_VMINT_MIN <= (l) && (l) <= HB_VMINT_MAX )
@@ -509,6 +511,13 @@ typedef HB_MAXUINT   HB_VMMAXUINT;
 #  define HB_ULL( num )          num##ULL
 #endif
 
+#if LONGLONG_MAX < LONG_MAX
+   #if defined( __WATCOMC__ )
+      #error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99 or upgrade/downgrade"
+   #else
+      #error "Your C compiler wrongly preprocess 64-bit constants"
+   #endif
+#endif
 
 /* HB_*_EXPLENGTH() macros are used by HVM to set the size of
  * math operations, HB_*_LENGTH() macros are used when new
@@ -597,7 +606,7 @@ typedef HB_U32 HB_FATTR;
 #endif
 
 /* type for file offsets */
-#if defined( HB_LONG_LONG_OFF ) || ULONG_MAX == ULONGLONG_MAX
+#if defined( HB_LONG_LONG_OFF ) || LONG_MAX == LONGLONG_MAX
    typedef HB_LONG HB_FOFFSET;
    /* we can add hack with double as work around what should
       effectively give 52bit file size limit */
@@ -630,10 +639,18 @@ typedef HB_U32 HB_FATTR;
 #  endif
 #endif
 
-#if defined( HB_OS_WIN )
+#if defined( HB_OS_WIN ) || defined( HB_OS_DOS ) || defined( HB_OS_OS2 )
    typedef wchar_t         HB_WCHAR;
+   typedef wchar_t         HB_WCHAR16;
+   typedef HB_I32          HB_WCHAR32;
+#elif defined( __WATCOMC__ )
+   typedef unsigned short  HB_WCHAR;
+   typedef unsigned short  HB_WCHAR16;
+   typedef HB_I32          HB_WCHAR32;
 #else
    typedef unsigned short  HB_WCHAR;
+   typedef unsigned short  HB_WCHAR16;
+   typedef wchar_t         HB_WCHAR32;
 #endif
 
 /* maximum length of double number in decimal representation:
@@ -669,19 +686,22 @@ typedef HB_U32 HB_FATTR;
 
 #     define HB_BIG_ENDIAN
 
-#  elif ( defined( __BYTE_ORDER ) && defined( __LITTLE_ENDIAN ) && __BYTE_ORDER == __LITTLE_ENDIAN ) || \
+#  elif ( defined( __BYTE_ORDER__ ) && defined( __LITTLE_ENDIAN__ ) && __BYTE_ORDER__ == __LITTLE_ENDIAN__ ) || \
+        ( defined( __BYTE_ORDER ) && defined( __LITTLE_ENDIAN ) && __BYTE_ORDER == __LITTLE_ENDIAN ) || \
         ( defined( _BYTE_ORDER ) && defined( _LITTLE_ENDIAN ) && _BYTE_ORDER == _LITTLE_ENDIAN ) || \
         ( defined( BYTE_ORDER ) && defined( LITTLE_ENDIAN ) && BYTE_ORDER == LITTLE_ENDIAN )
 
 #     define HB_LITTLE_ENDIAN
 
-#  elif ( defined( __BYTE_ORDER ) && defined( __BIG_ENDIAN ) && __BYTE_ORDER == __BIG_ENDIAN ) || \
+#  elif ( defined( __BYTE_ORDER__ ) && defined( __BIG_ENDIAN__ ) && __BYTE_ORDER__ == __BIG_ENDIAN__ ) || \
+        ( defined( __BYTE_ORDER ) && defined( __BIG_ENDIAN ) && __BYTE_ORDER == __BIG_ENDIAN ) || \
         ( defined( _BYTE_ORDER ) && defined( _BIG_ENDIAN ) && _BYTE_ORDER == _BIG_ENDIAN ) || \
         ( defined( BYTE_ORDER ) && defined( BIG_ENDIAN ) && BYTE_ORDER == BIG_ENDIAN )
 
 #     define HB_BIG_ENDIAN
 
-#  elif ( defined( __BYTE_ORDER ) && defined( __PDP_ENDIAN ) && __BYTE_ORDER == __PDP_ENDIAN ) || \
+#  elif ( defined( __BYTE_ORDER__ ) && defined( __PDP_ENDIAN__ ) && __BYTE_ORDER__ == __PDP_ENDIAN__ ) || \
+        ( defined( __BYTE_ORDER ) && defined( __PDP_ENDIAN ) && __BYTE_ORDER == __PDP_ENDIAN ) || \
         ( defined( _BYTE_ORDER ) && defined( _PDP_ENDIAN ) && _BYTE_ORDER == _PDP_ENDIAN ) || \
         ( defined( BYTE_ORDER ) && defined( PDP_ENDIAN ) && BYTE_ORDER == PDP_ENDIAN )
 
@@ -826,9 +846,13 @@ typedef HB_U32 HB_FATTR;
 #if defined( HB_BIG_ENDIAN )
 #  define   HB_PUT_UINT32( p, v )   HB_PUT_BE_UINT32( p, ( HB_U32 ) ( v ) )
 #  define   HB_GET_UINT32( p )      HB_GET_BE_UINT32( p )
+#  define   HB_PUT_UINT64( p, v )   HB_PUT_BE_UINT64( p, ( HB_U64 ) ( v ) )
+#  define   HB_GET_UINT64( p )      HB_GET_BE_UINT64( p )
 #else
 #  define   HB_PUT_UINT32( p, v )   HB_PUT_LE_UINT32( p, ( HB_U32 ) ( v ) )
 #  define   HB_GET_UINT32( p )      HB_GET_LE_UINT32( p )
+#  define   HB_PUT_UINT64( p, v )   HB_PUT_LE_UINT64( p, ( HB_U64 ) ( v ) )
+#  define   HB_GET_UINT64( p )      HB_GET_LE_UINT64( p )
 #endif
 
 /* Macros to store/retrieve integer and double values at/from byte address */
@@ -1405,10 +1429,10 @@ typedef HB_U32 HB_FATTR;
  * so we always have to build them from HB_BYTEs and cannot use C casting
  */
 #define HB_GET_LE_INT24( p )        ( ( HB_I32 ) \
-                                      ( ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 0 ] ) | \
-                                        ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \
-                                        ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 2 ] << 16 ) | \
-                                        ( ( HB_I32 ) (((( const HB_BYTE * )( p ))[ 2 ] & 0x80 ) ? 0xFF : 0x00 ) << 24 ) ) )
+                                      ( ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 0 ] ) | \
+                                        ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \
+                                        ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 2 ] << 16 ) | \
+                                        ( ( HB_U32 ) (((( const HB_BYTE * )( p ))[ 2 ] & 0x80 ) ? 0xFFu : 0x00u ) << 24 ) ) )
 #define HB_GET_LE_UINT24( p )       ( ( HB_U32 ) \
                                       ( ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 0 ] ) | \
                                         ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \
@@ -1419,10 +1443,10 @@ typedef HB_U32 HB_FATTR;
                                        (( HB_BYTE * )( p ))[ 2 ] = ( HB_BYTE )( ( u ) >> 16 ); \
                                     } while( 0 )
 #define HB_GET_BE_INT24( p )        ( ( HB_I32 ) \
-                                      ( ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 2 ] ) | \
-                                        ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \
-                                        ( ( HB_I32 ) (( const HB_BYTE * )( p ))[ 0 ] << 16 ) | \
-                                        ( ( HB_I32 ) (((( const HB_BYTE * )( p ))[ 0 ] & 0x80 ) ? 0xFF : 0x00 ) << 24 ) ) )
+                                      ( ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 2 ] ) | \
+                                        ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \
+                                        ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 0 ] << 16 ) | \
+                                        ( ( HB_U32 ) (((( const HB_BYTE * )( p ))[ 0 ] & 0x80 ) ? 0xFFu : 0x00u ) << 24 ) ) )
 #define HB_GET_BE_UINT24( p )       ( ( HB_U32 ) \
                                       ( ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 2 ] ) | \
                                         ( ( HB_U32 ) (( const HB_BYTE * )( p ))[ 1 ] <<  8 ) | \

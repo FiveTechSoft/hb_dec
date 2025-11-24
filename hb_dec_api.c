@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 #else
 
 /* Harbour Entry Point */
-#include "include/harbour/hbapi.h"
+#include "hbapi.h"
 
 HB_FUNC( HB_DEC_DECOMPILE ) {
     const char *filename = hb_parc(1);

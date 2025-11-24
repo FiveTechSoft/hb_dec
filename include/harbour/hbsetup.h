@@ -148,11 +148,12 @@
       defined( __x86_64 ) || \
       defined( _M_AMD64 ) || \
       defined( _M_X64 ) || \
-      defined( __MINGW64__ )
+      ( defined( __MINGW64__ ) && ! defined( __aarch64__ ) )
    #define HB_CPU_X86_64
 
 #elif defined( __arm64__ ) || \
-      defined( __aarch64__ )
+      defined( __aarch64__ ) || \
+      defined( _M_ARM64 )
    #define HB_CPU_ARM_64
 
 #elif defined( __arm__ ) || \
@@ -353,7 +354,7 @@
 #endif
 
 #ifndef HB_OS_LINUX
-   #if defined( linux ) || defined( __linux ) || defined( __linux__ ) || defined( __gnu_linux__ )
+   #if defined( linux ) || defined( __linux ) || defined( __linux__ ) || defined( __gnu_linux__ ) || defined( __EMSCRIPTEN__ )
       #define HB_OS_LINUX
    #endif
 #endif

@@ -1,0 +1,17 @@
+# Harbour Decompiler HBP project file
+
+-ohb_dec
+
+# Main Harbour entry point
+hb_dec.prg
+
+# C Library sources
+pe_helper_c.c
+harbour_helper_c.c
+writer_c.c
+harbour_decompiler_c.c
+hb_dec_api.c
+
+# Include paths if needed (usually current dir is included)
+-I.
+-Iinclude/wine
